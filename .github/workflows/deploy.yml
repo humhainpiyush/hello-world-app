@@ -6,6 +6,7 @@ on:
       - main
     tags:
       - '*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,8 +25,8 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build React App
-        run: npm run build
+      - name: No Build Setup Needed
+        run: echo "No build step for Node.js Express app"
 
   docker:
     name: Docker Build and Push
@@ -61,16 +62,27 @@ jobs:
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
-          password: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "Navigating to the Docker Compose file directory"
-            cd /path to your repo/ 
-              echo "Stopping and removing any running containers"
-              docker stop <container name>
-              docker rm <container name>
-              echo "Removing the old Docker image"
-              docker rmi -f <latest image>|| true
-              echo "Logging into Docker Hub on the remote server"
-              echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-              echo "Pulling the latest image"
-              docker compose up --build -d
+            echo "Navigating to app directory"
+            cd ~
+
+            echo "Stopping and removing any existing container"
+            docker stop express-app || true
+            docker rm express-app || true
+
+            echo "Removing old Docker image"
+            docker rmi -f ${{ secrets.DOCKER_USERNAME }}/github-action-test:latest || true
+
+            echo "Logging into Docker Hub"
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            echo "Pulling latest image"
+            docker pull ${{ secrets.DOCKER_USERNAME }}/github-action-test:latest
+
+            echo "Running new container"
+            docker run -d \
+              --name express-app \
+              -p 3000:3000 \
+              --restart always \
+              ${{ secrets.DOCKER_USERNAME }}/github-action-test:latest
